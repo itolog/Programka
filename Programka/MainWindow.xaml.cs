@@ -14,6 +14,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Diagnostics;
+using System.Collections.ObjectModel;
 
 namespace Programka
 {
@@ -24,13 +25,18 @@ namespace Programka
     {
         public string FilePath { get; private set; }
 
-        List<TaskData> taskList = new List<TaskData>(); 
+        ObservableCollection<string> taskList;
+        private List<Process> myProc = new List<Process>();
 
         public MainWindow()
         {
             InitializeComponent();
 
             this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+
+            taskList = new ObservableCollection<string> { };
+            listOfTasks.ItemsSource = taskList;
+            // listOfTasks.ToolTip = "delete";
         }
 
         // GET FILE PATH
@@ -39,51 +45,70 @@ namespace Programka
             OpenFileDialog openFileDialog = new OpenFileDialog();
             if (openFileDialog.ShowDialog() == true)
             {
-                FilePath = openFileDialog.FileName; 
+                FilePath = openFileDialog.FileName;
+                filePathLabel.Content = FilePath;
             }
-            
-            Console.WriteLine("Opened");
+
         }
 
         // ADD COMMAND FOR {TASK}.exe
         private void Button_Add_Task(object sender, RoutedEventArgs e)
         {
+            // Arguments for Task from Input
             string commands = taskArgs.Text.Trim();
-            if(commands != "")
+
+            if (FilePath != null)
             {
-                if(FilePath != null)
+                try
                 {
-                    string taskCommand = $"{FilePath}:  {commands}";
-                    taskList.Add(new TaskData(FilePath, commands));
-                 
-                  
-                   listOfTasks.Items.Add(taskCommand);
-                     
+                    taskList.Add(FilePath);
+
+                    // Clear State
                     taskArgs.Text = "";
+                    FilePath = null;
+                    filePathLabel.Content = "";
                 }
-                else
+                catch (Exception ex)
                 {
-                    MessageBox.Show("Pick Folder");
+                    MessageBox.Show(ex.Message);
                 }
-              
+            }
+            else
+            {
+                MessageBox.Show("Pick Folder");
             }
         }
 
         // REMOVE TASK FROM taskList
         private void list_Selected(object sender, RoutedEventArgs e)
         {
-            var p = listOfTasks.SelectedItem as string;
-            MessageBox.Show(p);
+            if (listOfTasks != null)
+            {
+                try
+                {
+                    var p = listOfTasks.SelectedItem.ToString();
+                    taskList.Remove(p);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+            }
         }
 
-        private  void Button_Start(object sender, RoutedEventArgs e)
+        private void Button_Start(object sender, RoutedEventArgs e)
         {
             try
             {
                 foreach (var item in taskList)
                 {
-                     Process.Start(item.FilePath, item.FileCommand);
+
+                    myProc.Add(Process.Start(item));
                 }
+
+                ButtonStart.IsEnabled = false;
+                ButtonCancelTasks.IsEnabled = true;
+                listOfTasks.IsEnabled = false;
             }
             catch (Exception ex)
             {
@@ -91,5 +116,24 @@ namespace Programka
             }
         }
 
+        private void Button_Cancel_Tasks(object sender, RoutedEventArgs e)
+        {
+
+            try
+            {
+                foreach (var item in myProc)
+                {
+
+                    item.Kill();
+                    ButtonStart.IsEnabled = true;
+                    listOfTasks.IsEnabled = true;
+                    ButtonCancelTasks.IsEnabled = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
     }
 }
